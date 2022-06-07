@@ -15,31 +15,32 @@ public class Library {
     private final HashMap<String, Command> commandHashMap = new HashMap<>();    //字符串->命令对象HashMap
     private Integer numOfBooks;     //馆内存书数量，只加不减，具有唯一性，作为馆藏编号
 
-    static class ReaderNotFoundException extends Exception{}
-    static class BookNotFoundException extends Exception{}
-    static class BookLentException extends Exception{}
-    static class CommandNotFound extends Exception{}
+    static class ReaderNotFoundException extends Exception{
+        public ReaderNotFoundException(String warning){
+            super(warning);
+        }
+    }
+    static class BookNotFoundException extends Exception{
+        public BookNotFoundException(String warning){
+            super(warning);
+        }
+    }
+    static class BookLentException extends Exception{
+        public BookLentException(String warning){
+            super(warning);
+        }
+    }
+    static class CommandNotFound extends Exception{
+        public CommandNotFound(String warning){
+            super(warning);
+        }
+    }
 
     public  Library(){
-        //指令映射对象，如“帮助”->CommandHelp
-        commandHashMap.put("帮助",(words)->{
-            System.out.println("你可以进行的操作有：");
-            System.out.println();
-            System.out.println("“添加图书 (书名)”");
-            System.out.println("“移除图书 (馆藏编号)”");
-            System.out.println("“查找图书 (书名)”");
-            System.out.println();
-            System.out.println("”登记读者 (身份|选填:’学生/‘职工’) (姓名) (学号/工号)“");
-            System.out.println("“移除读者 (学号/工号)”");
-            System.out.println("“查找读者 (学号/工号)”");
-            System.out.println();
-            System.out.println("“借书 (书名) (读者学号/工号)");
-            System.out.println("“还书 (馆藏编号)”");
-            System.out.println();
-            System.out.println("注意：只有登记过的读者才可以借书哦！");
-        });
+        //指令名映射具体的指令对象，String->Command对象
+        commandHashMap.put("帮助", (words)-> printHelp());
 
-        commandHashMap.put("登记读者", words -> {
+        commandHashMap.put("登记读者", (words) -> {
             try {
                 register(words);
             }catch (ArrayIndexOutOfBoundsException e) {
@@ -47,32 +48,32 @@ public class Library {
             }
         });
 
-        commandHashMap.put("移除读者", words -> {
+        commandHashMap.put("移除读者", (words) -> {
             try {
                 if(!removeReader(words))
-                    throw new ReaderNotFoundException();
+                    throw new ReaderNotFoundException("该读者尚未登记，无法借书！");
                 System.out.println("已成功移除！");
             }catch (ArrayIndexOutOfBoundsException e) {
                 printCommandError();
             }catch (ReaderNotFoundException e){
-                System.out.println("查无此人！");
+                System.out.println(e.getMessage());
             }
         });
 
-        commandHashMap.put("查找读者", words -> {
+        commandHashMap.put("查找读者", (words) -> {
             try{
                 Readers reader = searchReader(words);
                 if(reader==null)
-                    throw new ReaderNotFoundException();
+                    throw new ReaderNotFoundException("没有这个人");
                 System.out.println("姓名：" + reader.getName() + " 学(工)号：" + reader.getId());
             }catch (ArrayIndexOutOfBoundsException e) {
                 printCommandError();
             }catch (ReaderNotFoundException e){
-                System.out.println("没有这个人！");
+                System.out.println(e.getMessage());
             }
         });
 
-        commandHashMap.put("添加图书", words -> {
+        commandHashMap.put("添加图书", (words) -> {
             try {
                 addBook(words[1]);
                 System.out.println("添加成功！");
@@ -81,47 +82,47 @@ public class Library {
             }
         });
 
-        commandHashMap.put("移除图书", words -> {
+        commandHashMap.put("移除图书", (words) -> {
             try {
                 if(!removeBook(words))
-                    throw new BookNotFoundException();
+                    throw new BookNotFoundException("馆里的这种书都被借走了噢");
                 System.out.println("已成功移除！");
 
             }catch (ArrayIndexOutOfBoundsException e) {
                 printCommandError();
             }catch (BookNotFoundException e) {
-                System.out.println("没有这本书！");
+                System.out.println(e.getMessage());
             }
         });
 
-        commandHashMap.put("查找图书", words -> {
+        commandHashMap.put("查找图书", (words) -> {
             try {
                 if (searchBook(words) == null)
-                    throw new BookNotFoundException();
+                    throw new BookNotFoundException("找不到这本书！");
 
                 System.out.println("查找完毕！");
             }catch (ArrayIndexOutOfBoundsException e){
                 printCommandError();
             }catch (BookNotFoundException e){
-                System.out.println("找不到这本书！");    //没找到
+                System.out.println(e.getMessage());
             }
         });
 
-        commandHashMap.put("借书", words -> {
+        commandHashMap.put("借书", (words) -> {
             try{
                 String[] changedWords = new String[words.length];
                 System.arraycopy(words, 0, changedWords, 0, words.length);      //arraycopy
                 changedWords[1] = changedWords[2];
                 Readers reader = searchReader(changedWords);
                 if (reader == null)     //如果在馆内没找到<指定读者>的登记记录
-                    throw new ReaderNotFoundException();
+                    throw new ReaderNotFoundException("该读者尚未登记，无法借书！");
 
                 BookRecorder recorder = searchBook(words);
                 if (recorder == null)      //如果在馆内没找到<指定图书>
-                    throw new BookNotFoundException();
+                    throw new BookNotFoundException("咱们这没这本书！");
 
                 if (recorder.getCondition().equals("已借出"))
-                    throw new BookLentException();
+                    throw new BookLentException("馆里的这种书都被借走了噢");
 
                 //目前只有“已借出”、“在馆”两种状态
                 if (recorder.getCondition().equals("在馆")) {
@@ -132,20 +133,16 @@ public class Library {
                 }
             }catch (ArrayIndexOutOfBoundsException e){
                 printCommandError();
-            }catch (ReaderNotFoundException e){
-                System.out.println("该读者尚未登记，无法借书！");
-            }catch (BookNotFoundException e){
-                System.out.println("咱们这没这本书！");
-            }catch (BookLentException e) {
-                System.out.println("馆里的这种书都被借走了噢");
+            }catch (ReaderNotFoundException | BookNotFoundException | BookLentException e){
+                System.out.println(e.getMessage());
             }
         });
 
-        commandHashMap.put("还书", words -> {
+        commandHashMap.put("还书", (words) -> {
             try{
                 BookRecorder recorder = searchBookIndex(words);
                 if (recorder == null)       //如果没找到<指定图书>（书和图书记录器是绑在一起的，所以）
-                    throw new BookNotFoundException();
+                    throw new BookNotFoundException("馆内没有这个编号的书！");
                 recorder.returnBook(words);
 
                 System.out.println("借书读者：" + recorder.getReader().getName() + " 借书时间：" + recorder.getLendDate());
@@ -153,7 +150,7 @@ public class Library {
             }catch (ArrayIndexOutOfBoundsException e){
                 printCommandError();
             }catch (BookNotFoundException e){
-                System.out.println("馆内没有这个编号的书！");
+                System.out.println(e.getMessage());
             }
         });
 
@@ -174,11 +171,11 @@ public class Library {
                 //根据words[0]位置的命令名获取相应指令的对象
                 Command command = commandHashMap.get(words[0]);
                 if (command == null)
-                    throw new CommandNotFound();
+                    throw new CommandNotFound("没有这种服务~");
                 command.doCmd(words);
 
             }catch (CommandNotFound e){
-                System.out.println("没有这种服务~");
+                System.out.println(e.getMessage());
             }
         }
     }
@@ -191,6 +188,23 @@ public class Library {
 
     public void printCommandError(){
         System.out.println("指令不符合要求，请检查！");
+    }
+
+    public void printHelp(){
+        System.out.println("你可以进行的操作有：");
+        System.out.println();
+        System.out.println("“添加图书 (书名)”");
+        System.out.println("“移除图书 (馆藏编号)”");
+        System.out.println("“查找图书 (书名)”");
+        System.out.println();
+        System.out.println("”登记读者 (身份|选填:’学生/‘职工’) (姓名) (学号/工号)“");
+        System.out.println("“移除读者 (学号/工号)”");
+        System.out.println("“查找读者 (学号/工号)”");
+        System.out.println();
+        System.out.println("“借书 (书名) (读者学号/工号)");
+        System.out.println("“还书 (馆藏编号)”");
+        System.out.println();
+        System.out.println("注意：只有登记过的读者才可以借书哦！");
     }
 
     public void addBook(String name)
@@ -295,7 +309,6 @@ public class Library {
         reader.setId(words[3]);
         this.addReader(reader);
         System.out.println("登记成功！");
-
     }
 
     public static void main(String[] args) {
